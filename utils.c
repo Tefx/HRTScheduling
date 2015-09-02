@@ -131,12 +131,12 @@ void insert_ordered(list *l, void *d, int (*compare)(const void *, const void *)
     }
 }
 
-list *copy_while_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p) {
+list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p) {
     list_node *tmp = l->head;
     void *copy = NULL;
     list *nl = new_list();
 
-    while (tmp && filter(tmp->data, p)) {
+    while (tmp && (!filter(tmp->data, p))) {
         copy = GC_MALLOC(s);
         memcpy(copy, tmp->data, s);
         push_right(nl, copy);

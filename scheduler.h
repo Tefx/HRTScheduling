@@ -27,15 +27,4 @@ typedef struct {
 
 time_hrts cycle_length(period_task_info *ts, size_t);
 
-typedef enum {
-    PRIMARY_FINISHED,
-    PRIMARY_CRASHED_OR_CANCELLED,
-    PRIMARY_PAUSED,
-    PRIMARY_STARTED_OR_RESUMED,
-
-    ALTERNATE_STARTED_OR_RESUMED,
-    ALTERNATE_PAUSED,
-    ALTERNATE_FINISHED
-} job_statue;
-
 #endif //HRTSCHEDULING_SCHEDULER_H_H
