@@ -31,10 +31,10 @@ typedef enum {
     RM_EVENT_FINISHED,
     RM_EVENT_STARTED,
     RM_EVENT_RESUMED
-} event_type;
+} event_type_rm;
 
 typedef struct {
-    event_type event;
+    event_type_rm event;
     task_hrts task;
     time_hrts time;
 } event_rm;

@@ -113,21 +113,48 @@ void *delete_node(list *l, list_node *node) {
     return data;
 }
 
-list_node *find_node(list_node *start, bool(*compare)(const void *, const void *), const void *p) {
+list_node *find_node_r(list_node *start, bool(*compare)(const void *, const void *), const void *p) {
     list_node *tmp = start;
     while (tmp && !compare(tmp->data, p)) tmp = tmp->next;
     return tmp;
 }
 
 void insert_ordered(list *l, void *d, int (*compare)(const void *, const void *)) {
-    list_node *p = l->head;
+    list_node *tmp = l->head;
 
-    if (p == NULL || compare(p->data, d) > 0) {
+    if (tmp == NULL || compare(tmp->data, d) > 0) {
         push(l, d);
     } else {
-        while (p != l->tail && compare(p->next->data, d) < 0)
-            p = p->next;
-        insert_after(l, p, d);
+        while (tmp != l->tail && compare(tmp->next->data, d) < 0)
+            tmp = tmp->next;
+        insert_after(l, tmp, d);
+    }
+}
+
+list *copy_while_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p) {
+    list_node *tmp = l->head;
+    void *copy = NULL;
+    list *nl = new_list();
+
+    while (tmp && filter(tmp->data, p)) {
+        copy = GC_MALLOC(s);
+        memcpy(copy, tmp->data, s);
+        push_right(nl, copy);
+        tmp = tmp->next;
+    }
+
+    return nl;
+}
+
+void insert_ordered_r(list *l, void *d, int(*compare)(const void *, const void *, const void *), const void *p) {
+    list_node *tmp = l->head;
+
+    if (tmp == NULL || compare(tmp->data, d, p) > 0) {
+        push(l, d);
+    } else {
+        while (tmp != l->tail && compare(tmp->next->data, d, p) < 0)
+            tmp = tmp->next;
+        insert_after(l, tmp, d);
     }
 }
 

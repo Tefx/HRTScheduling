@@ -30,7 +30,8 @@ void print_rt(void *tp) {
 int main(void) {
     period_task_info ts[] = {{30, 15, 15},
                              {50, 20, 20}};
-    time_slice_list tsl = rm_backward(ts, 2);
+    time_hrts cl = cycle_length(ts, 2);
+    time_slice_list tsl = rm_backward(ts, 2, cl);
 
     print_list(tsl, print_ts);
     cancel_n_adjust_alternate(tsl, task_id(0, 2), ts);

@@ -40,11 +40,14 @@ void *first(list *);
 
 void insert_ordered(list *, void *, int(*)(const void *, const void *));
 
+void insert_ordered_r(list *, void *, int(*)(const void *, const void *, const void *), const void *);
 void insert_after(list *, list_node *, void *);
+
+list *copy_while_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p);
 
 void *delete_node(list *, list_node *);
 
-list_node *find_node(list_node *, bool(*)(const void *, const void *), const void *);
+list_node *find_node_r(list_node *, bool(*)(const void *, const void *), const void *);
 
 void concat_before(list *, list *);
 

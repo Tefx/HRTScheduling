@@ -10,7 +10,7 @@
 #include "ratemono.h"
 #include "utils.h"
 
-typedef char ptba_time_statue;
+typedef unsigned int ptba_time_statue;
 
 #define PTBA_FREE 0x01
 #define PTBA_ALTERNATE_START 0x02
@@ -19,6 +19,7 @@ typedef char ptba_time_statue;
 #define PTBA_ALTERNATE_FINISH 0x10
 #define PTBA_ALTERNATE_ADVANCED 0x20
 #define PTBA_ALTERNATE_PRIMARY_CANCELLED 0x80
+#define PTBA_PRIMARY_USED 0x100
 
 typedef struct {
     time_hrts start;
@@ -30,8 +31,29 @@ typedef struct {
 #define ts_data(t) ((time_slice *) data_of(t))
 
 typedef list *time_slice_list;
+typedef list *task_hrts_list;
 
-time_slice_list rm_backward(period_task_info *ts, size_t n);
+typedef struct {
+    bool is_primary;
+    task_hrts job_no;
+    time_hrts last_start_point;
+    time_hrts remaining_time;
+    job_statue statue;
+} task_statue;
+
+typedef struct {
+    time_slice_list alternate_ts;
+    task_statue *task_statue;
+    time_hrts current_time;
+
+    period_task_info *task_info;
+    size_t num_task;
+    time_hrts cycle_length;
+} statue_ptba;
+
+statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n, time_hrts ct);
+
+time_slice_list rm_backward(period_task_info *ts, size_t n, time_hrts);
 
 time_slice_list rm_backward_from_task_list(task_list_rm ts, time_hrts current_time, time_hrts cycle_length);
 
