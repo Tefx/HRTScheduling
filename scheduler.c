@@ -2,7 +2,6 @@
 // Created by tefx on 8/27/15.
 //
 
-#include <malloc.h>
 #include "scheduler.h"
 
 time_hrts gcd(time_hrts m, time_hrts n) {

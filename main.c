@@ -36,7 +36,5 @@ int main(void) {
     cancel_n_adjust_alternate(tsl, task_id(0, 2), ts);
     print_list(tsl, print_ts);
 
-    deep_free_list(tsl);
-
     return 0;
 }

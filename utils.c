@@ -2,48 +2,23 @@
 // Created by tefx on 8/27/15.
 //
 
-#include <malloc.h>
+#include <gc/gc.h>
 #include <string.h>
+#include <stdio.h>
 #include "utils.h"
 
 list_node *wrap_list_node(void *data, list_node *pred, list_node *next) {
-    list_node *node = malloc(sizeof(list_node));
+    list_node *node = GC_MALLOC(sizeof(list_node));
     node->prev = pred;
     node->next = next;
     node->data = data;
     return node;
 }
 
-void deep_free_list_node(list_node *node) {
-    if (node->data) free(node->data);
-    free(node);
-}
-
-
 list *new_list() {
-    list *l = malloc(sizeof(list));
+    list *l = GC_MALLOC(sizeof(list));
     l->head = l->tail = NULL;
     return l;
-}
-
-void free_list(list *l) {
-    list_node *tmp;
-
-    while (not_empty(l)) {
-        tmp = l->head;
-        l->head = tmp->next;
-        free(tmp);
-    }
-}
-
-void deep_free_list(list *l) {
-    list_node *tmp;
-
-    while (not_empty(l)) {
-        tmp = l->head;
-        l->head = tmp->next;
-        deep_free_list_node(tmp);
-    }
 }
 
 bool is_empty(list *l) {
@@ -51,7 +26,7 @@ bool is_empty(list *l) {
 }
 
 bool not_empty(list *l) {
-    return (l->head);
+    return (l->head != NULL);
 }
 
 void push(list *l, void *d) {
@@ -70,7 +45,6 @@ void *pop(list *l) {
     if (ret) {
         d = ret->data;
         l->head = ret->next;
-        free(ret);
 
         if (l->head)
             l->head->prev = NULL;
@@ -100,7 +74,6 @@ void *pop_right(list *l) {
     if (ret) {
         d = ret->data;
         l->tail = ret->prev;
-        free(ret);
 
         if (l->tail)
             l->tail->next = NULL;
@@ -169,33 +142,6 @@ void print_list(list *l, void(*print)(void *)) {
     printf("nil\n");
 }
 
-list *copy_while(list *l, bool(*filter)(const void *, const void *), const void *p) {
-    list_node *tmp = l->head;
-    list *nl = new_list();
-
-    while (tmp && filter(tmp->data, p)) {
-        push_right(nl, tmp->data);
-        tmp = tmp->next;
-    }
-
-    return nl;
-}
-
-list *deep_copy_while(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p) {
-    list_node *tmp = l->head;
-    void *copy = NULL;
-    list *nl = new_list();
-
-    while (tmp && filter(tmp->data, p)) {
-        copy = malloc(s);
-        memcpy(copy, tmp->data, s);
-        push_right(nl, copy);
-        tmp = tmp->next;
-    }
-
-    return nl;
-}
-
 void concat_before(list *l1, list *l0) {
     if (is_empty(l1)) {
         l1->head = l0->head;
@@ -205,5 +151,4 @@ void concat_before(list *l1, list *l0) {
         l0->tail->next = l1->head;
         l1->head = l0->head;
     }
-    free(l0);
 }

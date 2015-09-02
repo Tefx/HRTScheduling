@@ -24,10 +24,6 @@ typedef struct {
 
 list *new_list();
 
-void free_list(list *);
-
-void deep_free_list(list *);
-
 bool is_empty(list *);
 
 bool not_empty(list *);
@@ -49,10 +45,6 @@ void insert_after(list *, list_node *, void *);
 void *delete_node(list *, list_node *);
 
 list_node *find_node(list_node *, bool(*)(const void *, const void *), const void *);
-
-list *copy_while(list *, bool(*)(const void *, const void *), const void *);
-
-list *deep_copy_while(list *, bool(*)(const void *, const void *), size_t, const void *);
 
 void concat_before(list *, list *);
 

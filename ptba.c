@@ -2,13 +2,13 @@
 // Created by tefx on 8/26/15.
 //
 
-#include <malloc.h>
+#include <gc/gc.h>
 #include "ptba.h"
 
 time_slice_list build_alternate_list(list *es, time_hrts cycle_length) {
     event_rm *ev = pop(es);
     time_slice_list ts = new_list();
-    time_slice *cur = malloc(sizeof(time_slice));
+    time_slice *cur = GC_MALLOC(sizeof(time_slice));
 
     cur->start = 0;
     cur->task_id = 0;
@@ -17,9 +17,7 @@ time_slice_list build_alternate_list(list *es, time_hrts cycle_length) {
     while (ev) {
         cur->end = cycle_length - ev->time;
 
-        if (cur->start == cur->end)
-            free(cur);
-        else {
+        if (cur->start != cur->end) {
             if (ev->event == RM_EVENT_STARTED)
                 cur->statue |= PTBA_ALTERNATE_FINISH;
             else if (ev->event == RM_EVENT_RESUMED)
@@ -27,7 +25,7 @@ time_slice_list build_alternate_list(list *es, time_hrts cycle_length) {
             push_right(ts, cur);
         }
 
-        cur = malloc(sizeof(time_slice));
+        cur = GC_MALLOC(sizeof(time_slice));
         cur->start = cycle_length - ev->time;
         cur->statue = 0;
 
@@ -60,15 +58,11 @@ list_node *cancel_alternate(time_slice_list l, task_hrts tid) {
     list_node *t = head_of(l);
 
     while ((t = find_node(t, captured_by_task, &tid))) {
-        if (t->prev && ts_data(t->prev)->statue & PTBA_FREE) {
+        if (t->prev && ts_data(t->prev)->statue & PTBA_FREE)
             ts_data(t)->start = ts_data(t->prev)->start;
-            free(delete_node(l, t->prev));
-        }
 
-        if (t->next && ts_data(t->next)->statue & PTBA_FREE) {
+        if (t->next && ts_data(t->next)->statue & PTBA_FREE)
             ts_data(t)->end = ts_data(t->next)->end;
-            free(delete_node(l, t->next));
-        }
 
         ts_data(t)->task_id = 0;
 
@@ -94,7 +88,7 @@ int add_alternate(time_slice_list l, task_hrts tid, period_task_info *ti) {
         ts = (time_slice *) data_of(node);
         if (ts->statue & PTBA_FREE) {
             if (ts->end - ts->start > rt) {
-                new_node = malloc(sizeof(time_slice));
+                new_node = GC_MALLOC(sizeof(time_slice));
                 new_node->task_id = tid;
                 new_node->start = ts->start;
                 new_node->end = ts->start + rt;
@@ -148,7 +142,7 @@ task_list_rm pop_alternates_before(time_slice_list l, list_node *node, period_ta
         if ((tn = find_node(head_of(ts), tid_eq, &(ts_data(node)->task_id)))) {
             ((task_rm *) data_of(tn))->rt += ts_data(node)->end - ts_data(node)->start;
         } else {
-            task = malloc(sizeof(task_rm));
+            task = GC_MALLOC(sizeof(task_rm));
             task->tid = ts_data(node)->task_id;
             task->rt = ts_data(node)->end - ts_data(node)->start;
             task->period = task_info[task_no(ts_data(node)->task_id)].period;
@@ -175,14 +169,9 @@ task_list_rm pop_alternates_before(time_slice_list l, list_node *node, period_ta
 time_slice_list rm_backward_from_task_list(task_list_rm ts, time_hrts ct, time_hrts cl) {
     schedule_status_rm *ss = init_status_rm(ts);
     event_list_rm es = new_list();
-    time_slice_list ret;
 
     while ((ct = schedule_rm(ss, es, ct)) >= 0);
-    ret = build_alternate_list(es, cl);
-
-    free_status_rm(ss);
-    deep_free_list(es);
-    return ret;
+    return build_alternate_list(es, cl);
 }
 
 void cancel_n_adjust_alternate(time_slice_list l, task_hrts tid, period_task_info *ts) {
@@ -195,9 +184,7 @@ void cancel_n_adjust_alternate(time_slice_list l, task_hrts tid, period_task_inf
     if (not_empty(l_before) && not_empty(l) &&
         ts_data(tail_of(l_before))->task_id == ts_data(head_of(l))->task_id) {
         ts_data(head_of(l))->start = ts_data(tail_of(l_before))->start;
-        free(pop_right(l_before));
     }
-
     concat_before(l, l_before);
 }
 

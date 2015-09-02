@@ -3,7 +3,7 @@
 //
 
 #include <stdio.h>
-#include <malloc.h>
+#include <gc/gc.h>
 #include "ratemono.h"
 
 int compare_starttime(const void *x, const void *y) {
@@ -15,7 +15,7 @@ int compare_priority(const void *x, const void *y) {
 }
 
 schedule_status_rm *init_status_rm(task_list_rm ts) {
-    schedule_status_rm *ss = malloc(sizeof(schedule_status_rm));
+    schedule_status_rm *ss = GC_MALLOC(sizeof(schedule_status_rm));
     list_node *tmp = head_of(ts);
 
     ss->waiting_queue = new_list();
@@ -28,16 +28,6 @@ schedule_status_rm *init_status_rm(task_list_rm ts) {
     }
 
     return ss;
-}
-
-void free_status_rm(schedule_status_rm *ss) {
-    if (ss->waiting_queue)
-        deep_free_list(ss->waiting_queue);
-    if (ss->available_queue)
-        deep_free_list(ss->available_queue);
-    if (ss->current_running)
-        free(ss->current_running);
-    free(ss);
 }
 
 void move_tasks_wq2aq(schedule_status_rm *ss, time_hrts ct) {
@@ -77,19 +67,18 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
     move_tasks_wq2aq(ss, ct);
 
     if (ss->current_running && ss->current_running->rt <= 0) {
-        ev = malloc(sizeof(event_rm));
+        ev = GC_MALLOC(sizeof(event_rm));
         ev->event = RM_EVENT_FINISHED;
         ev->task = ss->current_running->tid;
         ev->time = ct;
         push(es, ev);
-        free(ss->current_running);
         ss->current_running = NULL;
     }
 
     if ((first_avail = (task_rm *) first(ss->available_queue))) {
         if (ss->current_running) {
             if (ss->current_running->period > first_avail->period) {
-                ev = malloc(sizeof(event_rm));
+                ev = GC_MALLOC(sizeof(event_rm));
                 ev->event = RM_EVENT_PAUSED;
                 ev->task = ss->current_running->tid;
                 ev->time = ct;
@@ -102,7 +91,7 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
         }
 
         ss->current_running = pop(ss->available_queue);
-        ev = malloc(sizeof(event_rm));
+        ev = GC_MALLOC(sizeof(event_rm));
         if (ss->current_running->paused)
             ev->event = RM_EVENT_RESUMED;
         else
@@ -122,7 +111,7 @@ task_list_rm alternate_to_backward_task_rm(period_task_info *ts, size_t n, time_
 
     for (size_t i = 0; i < n; i++)
         for (size_t j = 0; j < cl / ts[i].period; j++) {
-            task = malloc(sizeof(task_rm));
+            task = GC_MALLOC(sizeof(task_rm));
             task->tid = task_id(i, j);
             task->period = ts[i].period;
             task->rt = ts[i].alternate_time;
