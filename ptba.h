@@ -10,15 +10,18 @@
 #include "ratemono.h"
 #include "utils.h"
 
-typedef char ptba_time_statue;
+typedef enum {
+    PTBA_EMPTY = 0,
+    PTBA_FREE = 0x01,
+    PTBA_ALTERNATE_START = 0x02,
+    PTBA_ALTERNATE_RESUME = 0x04,
+    PTBA_ALTERNATE_PAUSE = 0x08,
+    PTBA_ALTERNATE_FINISH = 0x10,
+    PTBA_PRIMARY_USED = 0x20
+} time_slice_flag;
 
-#define PTBA_FREE 0x01
-#define PTBA_ALTERNATE_START 0x02
-#define PTBA_ALTERNATE_RESUME 0x04
-#define PTBA_ALTERNATE_PAUSE 0x08
-#define PTBA_ALTERNATE_FINISH 0x10
-#define PTBA_ALTERNATE_ADVANCED 0x20
-#define PTBA_PRIMARY_USED 0x40
+typedef time_slice_flag ptba_time_statue;
+
 
 typedef struct {
     time_hrts start;
@@ -58,17 +61,19 @@ typedef struct {
 typedef struct {
     time_slice_list alternate_ts;
     task_statue_ptba *task_statue;
-    time_hrts current_time;
+
     time_hrts last_scheduling_point;
     task_hrts current_running;
+
+    time_slice_list predict_table;
+    time_hrts pt_task;
 
     period_task_info *task_info;
     size_t num_task;
     time_hrts cycle_length;
-    time_hrts adv_orig;
 } statue_ptba;
 
-statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n, time_hrts ct);
+statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n);
 
 time_slice_list rm_backward(period_task_info *ts, size_t n, time_hrts);
 
@@ -76,7 +81,18 @@ time_slice_list rm_backward_from_task_list(task_list_rm ts, time_hrts current_ti
 
 void cancel_n_adjust_alternate(time_slice_list, task_hrts, period_task_info *);
 
-time_hrts schedule_ptba(statue_ptba *, time_hrts, schedule_reason_ptba);
+time_slice *strip_time(time_slice_list tsl, time_hrts current_time);
+
+time_hrts adjust_released(statue_ptba *statue, time_hrts current);
+
+task_hrts find_task_with_earliest_notice_time(statue_ptba *);
+
+time_hrts schedule_ptba(statue_ptba *, time_hrts, schedule_reason_ptba, action_schedule *);
+
+time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason,
+                              action_schedule *);
+
+time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason, action_schedule *);
 
 #endif //HRTSCHEDULING_PTBA_H
 

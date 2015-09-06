@@ -6,7 +6,7 @@
 #include <gc/gc.h>
 #include "ratemono.h"
 
-int compare_starttime(const void *x, const void *y) {
+int compare_start_time(const void *x, const void *y) {
     return COMPARE(x, y, task_rm, st);
 }
 
@@ -23,7 +23,7 @@ schedule_status_rm *init_status_rm(task_list_rm ts) {
     ss->current_running = NULL;
 
     while (tmp) {
-        insert_ordered(ss->waiting_queue, data_of(tmp), compare_starttime);
+        insert_ordered(ss->waiting_queue, data_of(tmp), compare_start_time);
         tmp = tmp->next;
     }
 

@@ -28,7 +28,7 @@ time_slice_list build_alternate_list(list *es, time_hrts cycle_length) {
 
         cur = GC_MALLOC(sizeof(time_slice));
         cur->start = cycle_length - ev->time;
-        cur->statue = 0;
+        cur->statue = PTBA_EMPTY;
 
         switch (ev->event) {
             case RM_EVENT_STARTED:
@@ -149,17 +149,17 @@ time_slice_list rm_backward(period_task_info *ts, size_t n, time_hrts cl) {
     return rm_backward_from_task_list(tl, 0, cl);
 }
 
-statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n, time_hrts ct) {
+statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n) {
     statue_ptba *statue = GC_MALLOC(sizeof(statue_ptba));
-    statue->current_time = ct;
     statue->task_info = ts;
     statue->num_task = n;
     statue->cycle_length = cycle_length(ts, n);
     statue->alternate_ts = rm_backward(ts, n, statue->cycle_length);
     statue->task_statue = GC_MALLOC_ATOMIC(sizeof(task_statue_ptba) * n);
-    statue->adv_orig = 0;
     statue->last_scheduling_point = 0;
     statue->current_running = -1;
+    statue->predict_table = NULL;
+    statue->pt_task = -1;
 
     for (size_t i = 0; i < n; i++) {
         statue->task_statue[i].job = 0;
@@ -174,7 +174,7 @@ bool before_notice_time(const void *ts, const void *tid) {
     return ((time_slice *) ts)->task_id == *((task_hrts *) tid);
 }
 
-bool test_availablity_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid) {
+bool availability_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid) {
     list_node *tmp = head_of(tsl);
     time_slice *t = NULL;
     time_hrts needed_time = s->task_statue[task_no(tid)].remaining_time;
@@ -234,153 +234,217 @@ bool test_availablity_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts
     return true;
 }
 
-time_slice_list predict(statue_ptba *statue, task_hrts tid) {
+bool predict(statue_ptba *statue, task_hrts tid) {
     time_slice_list tsl = copy_until_r(statue->alternate_ts, before_notice_time, sizeof(time_slice), &tid);
     list_node *tmp = head_of(tsl);
-    job_statue_ptba jstatue;
+    job_statue_ptba job_statue;
 
     while (tmp) {
         if (ts_data(tmp)->statue & PTBA_ALTERNATE_START) {
-            jstatue = statue->task_statue[task_no(ts_data(tmp)->task_id)].statue;
-            if (jstatue == JOB_STATUE_FINISHED)
-                test_availablity_for_primary(statue, tsl, ts_data(tmp)->task_id);
+            job_statue = statue->task_statue[task_no(ts_data(tmp)->task_id)].statue;
+            if (job_statue == JOB_STATUE_FINISHED)
+                availability_for_primary(statue, tsl, ts_data(tmp)->task_id);
         }
         tmp = tmp->next;
     }
 
-    if (test_availablity_for_primary(statue, tsl, tid))
-        return tsl;
-    else
-        return NULL;
-}
-
-void action(task_statue_ptba *task, job_statue_ptba js) {
-    task->statue = js;
-
-    switch (js) {
-        case JOB_STATUE_PRIMARY_STARTED_OR_RESUMED:
-            printf("JOB_STATUE_PRIMARY_STARTED_OR_RESUMED");
-            break;
-        case JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED:
-            printf("JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED");
-            break;
-        case JOB_STATUE_PRIMARY_PAUSED:
-            printf("JOB_STATUE_PRIMARY_PAUSED");
-            break;
-        case JOB_STATUE_ALTERNATE_PAUSED:
-            printf("JOB_STATUE_ALTERNATE_PAUSED");
-            break;
-        case JOB_STATUE_PRIMARY_CANCELLED:
-            printf("JOB_STATUE_PRIMARY_CANCELLED");
-            break;
-        default:
-            break;
+    if (availability_for_primary(statue, tsl, tid)) {
+        statue->predict_table = tsl;
+        statue->pt_task = tid;
+        return true;
+    } else {
+        statue->predict_table = NULL;
+        statue->pt_task = -1;
+        return false;
     }
 }
 
-time_hrts schedule_ptba(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason) {
-    job_statue_ptba jstatue;
-    time_slice *tmp_slice;
-    task_statue_ptba *cur_tstatue;
+time_hrts schedule_ptba(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason,
+                        action_schedule *action) {
 
-    //Update the time_slice_list by removing the used time
-    tmp_slice = pop(statue->alternate_ts);
-    if (current_time < tmp_slice->end) {
-        tmp_slice->start = current_time;
-        push(statue->alternate_ts, tmp_slice);
-    }
+    if (strip_time(statue->alternate_ts, current_time) == 0) return -1;
 
-    //Handle the current running task;
     if (statue->current_running >= 0) {
-        cur_tstatue = statue->task_statue + task_no(statue->current_running);
-
-        if (reason == REASON_PRIMARY_CRASHED) {
-            cur_tstatue->statue = JOB_STATUE_PRIMARY_CRASHED;
-            cur_tstatue->remaining_time = 0;
-        } else {
-            cur_tstatue->remaining_time -= current_time - statue->last_scheduling_point;
-            if (cur_tstatue->statue == JOB_STATUE_PRIMARY_STARTED_OR_RESUMED) {
-                if (cur_tstatue->remaining_time <= 0) {
-                    cur_tstatue->statue = JOB_STATUE_FINISHED;
+        task_statue_ptba *cur_task_statue = statue->task_statue + task_no(statue->current_running);
+        if (reason != REASON_PRIMARY_CRASHED) {
+            cur_task_statue->remaining_time -= current_time - statue->last_scheduling_point;
+            if (cur_task_statue->remaining_time <= 0) {
+                if (cur_task_statue->statue == JOB_STATUE_PRIMARY_STARTED_OR_RESUMED) {
+                    cur_task_statue->statue = JOB_STATUE_FINISHED;
                     cancel_n_adjust_alternate(statue->alternate_ts, statue->current_running, statue->task_info);
-                } else {
-                    action(cur_tstatue, JOB_STATUE_PRIMARY_PAUSED);
+                } else if (cur_task_statue->statue == JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED) {
+                    cur_task_statue->statue = JOB_STATUE_FINISHED;
                 }
-            } else if (cur_tstatue->statue == JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED) {
-                if (cur_tstatue->remaining_time <= 0) {
-                    cur_tstatue->statue = JOB_STATUE_FINISHED;
-                } else {
-                    action(cur_tstatue, JOB_STATUE_ALTERNATE_PAUSED);
+            } else {
+                if (cur_task_statue->statue == JOB_STATUE_PRIMARY_STARTED_OR_RESUMED) {
+                    cur_task_statue->statue = JOB_STATUE_PRIMARY_PAUSED;
+                } else if (cur_task_statue->statue == JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED) {
+                    cur_task_statue->statue = JOB_STATUE_ALTERNATE_PAUSED;
                 }
             }
         }
     }
 
-    tmp_slice = first(statue->alternate_ts);
+    action->action = ACTION_NOTHING;
+    action->task_no = -1;
 
-    //if an alternate is arrived.
-    if (!(tmp_slice->statue & PTBA_FREE)) {
-        cur_tstatue = statue->task_statue + task_no(tmp_slice->task_id);
+    if (statue->predict_table)
+        return schedule_ptba_PT(statue, current_time, reason, action);
+    else
+        return schedule_ptba_nonPT(statue, current_time, reason, action);
+}
 
-        if (tmp_slice->statue & PTBA_ALTERNATE_START) {
-            cur_tstatue->remaining_time = statue->task_info[task_no(tmp_slice->task_id)].alternate_time;
-            action(cur_tstatue, JOB_STATUE_PRIMARY_CANCELLED);
-        }
+time_hrts adjust_released(statue_ptba *statue, time_hrts current_time) {
+    time_hrts min_release_time = statue->cycle_length;
+    time_hrts tmp_release_time;
+    job_statue_ptba job_statue;
 
-        action(cur_tstatue, JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED);
-        statue->last_scheduling_point = current_time;
-        statue->current_running = tmp_slice->task_id;
-        return tmp_slice->end;
-    }
+    for (size_t i = 0; i < statue->num_task; i++) {
+        job_statue = statue->task_statue[i].statue;
 
-    // prepare all released primaries and find the next one.
-    time_hrts least_notice_time = statue->cycle_length + 1;
-    task_hrts selected_next_primary = -1;
-    task_hrts tmp_tid;
-    time_slice_list predicted_tsl;
-    list_node *tmp;
-
-    while (1) {
-        for (size_t i = 0; i < statue->num_task; i++) {
-            jstatue = statue->task_statue[i].statue;
-
-            if (jstatue == JOB_STATUE_FINISHED &&
-                statue->task_info[i].period * (statue->task_statue[i].job + 1) >= current_time) {
+        if (job_statue == JOB_STATUE_FINISHED) {
+            tmp_release_time = statue->task_info[i].period * (statue->task_statue[i].job + 1);
+            if (tmp_release_time >= current_time) {
                 statue->task_statue[i].job++;
                 statue->task_statue[i].remaining_time = statue->task_info[i].period;
                 statue->task_statue[i].statue = JOB_STATUE_RELEASED;
             }
-
-            if (jstatue == JOB_STATUE_RELEASED ||
-                jstatue == JOB_STATUE_PRIMARY_PAUSED) {
-                tmp_tid = task_id(i, statue->task_statue[i].job);
-                tmp = find_node_r(head_of(statue->alternate_ts), before_notice_time, &tmp_tid);
-                if (ts_data(tmp)->start <= least_notice_time) {
-                    least_notice_time = ts_data(tmp)->start;
-                    selected_next_primary = tmp_tid;
-                }
-            }
-        }
-
-        //No available primary
-        if (selected_next_primary < 0) {
-            //TODO: EIT algorithm.
-            //TODO: calculation next schedule point.
-            return 0;
-        } else {
-            predicted_tsl = predict(statue, selected_next_primary);
-            if (predicted_tsl == NULL) {
-                cur_tstatue = statue->task_statue + task_no(selected_next_primary);
-                action(cur_tstatue, JOB_STATUE_PRIMARY_CANCELLED);
-                continue;
-            } else {
-                tmp = first(predicted_tsl);
-                cur_tstatue = statue->task_statue + task_no(ts_data(tmp)->task_id);
-                action(cur_tstatue, JOB_STATUE_PRIMARY_STARTED_OR_RESUMED);
-                statue->last_scheduling_point = current_time;
-                statue->current_running = ts_data(tmp)->task_id;
-                return ts_data(tmp)->end;
+            if (tmp_release_time < min_release_time) {
+                min_release_time = tmp_release_time;
             }
         }
     }
+    return min_release_time;
+}
+
+task_hrts find_task_with_earliest_notice_time(statue_ptba *statue) {
+    job_statue_ptba job_statue;
+    task_hrts tmp_tid;
+    list_node *tmp;
+    time_hrts least_notice_time = statue->cycle_length + 1;
+    task_hrts selected_next_primary = -1;
+
+    for (size_t i = 0; i < statue->num_task; i++) {
+        job_statue = statue->task_statue[i].statue;
+        if (job_statue == JOB_STATUE_RELEASED ||
+            job_statue == JOB_STATUE_PRIMARY_PAUSED) {
+            tmp_tid = task_id(i, statue->task_statue[i].job);
+            tmp = find_node_r(head_of(statue->alternate_ts), before_notice_time, &tmp_tid);
+            if (ts_data(tmp)->start <= least_notice_time) {
+                least_notice_time = ts_data(tmp)->start;
+                selected_next_primary = tmp_tid;
+            }
+        }
+    }
+
+    return selected_next_primary;
+}
+
+time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason,
+                              action_schedule *action) {
+    time_slice *first_slice = first(statue->alternate_ts);
+
+    if (reason == REASON_PRIMARY_CRASHED) {
+        task_statue_ptba *cur_task_statue = statue->task_statue + task_no(statue->current_running);
+        cur_task_statue->statue = JOB_STATUE_PRIMARY_CRASHED;
+        cur_task_statue->remaining_time = 0;
+    }
+
+    if (!(first_slice->statue & PTBA_FREE)) {
+        task_statue_ptba *cur_task_statue = statue->task_statue + task_no(first_slice->task_id);
+        cur_task_statue->statue = JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED;
+        statue->current_running = first_slice->task_id;
+        action->action = ACTION_START_OR_RESUME_ALTERNATE;
+        action->task_no = task_no(first_slice->task_id);
+
+        if (first_slice->statue & PTBA_ALTERNATE_START) {
+            cur_task_statue->remaining_time = statue->task_info[task_no(first_slice->task_id)].alternate_time;
+            action->action |= ACTION_CANCEL_PRIMARY;
+        }
+
+        statue->last_scheduling_point = current_time;
+        return first_slice->end;
+    } else {
+        time_hrts next_schedule_time = adjust_released(statue, current_time);
+        task_hrts selected_next_primary;
+
+        if (next_schedule_time > first_slice->end)
+            next_schedule_time = first_slice->end;
+
+        while (1) {
+            selected_next_primary = find_task_with_earliest_notice_time(statue);
+
+            if (selected_next_primary < 0) break;
+
+            if (predict(statue, selected_next_primary)) {
+                statue->pt_task = selected_next_primary;
+                return schedule_ptba_PT(statue, current_time, REASON_SCHEDULE_POINT, action);
+            } else {
+                task_statue_ptba *cur_task_statue = statue->task_statue + task_no(selected_next_primary);
+                cur_task_statue->statue = JOB_STATUE_PRIMARY_CANCELLED;
+                cur_task_statue->remaining_time = 0;
+            }
+        }
+
+        action->task_no = -1;
+        action->action = ACTION_INIT;
+        statue->last_scheduling_point = current_time;
+        statue->current_running = -1;
+        return next_schedule_time;
+    }
+}
+
+time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason,
+                           action_schedule *action) {
+    time_slice *first_slice;
+
+    first_slice = strip_time(statue->predict_table, current_time);
+
+    if (reason == REASON_PRIMARY_CRASHED || first_slice == NULL) {
+        statue->pt_task = -1;
+        statue->predict_table = NULL;
+        return schedule_ptba_nonPT(statue, current_time, reason, action);
+    }
+
+    if (first_slice->statue & PTBA_FREE) {
+        action->task_no = -1;
+        action->action = ACTION_NOTHING;
+        statue->current_running = -1;
+    } else {
+        task_statue_ptba *cur_task_statue = statue->task_statue + task_no(first_slice->task_id);
+        if (first_slice->statue & PTBA_PRIMARY_USED) {
+            cur_task_statue->statue = JOB_STATUE_PRIMARY_STARTED_OR_RESUMED;
+            action->task_no = task_no(first_slice->task_id);
+            action->action = ACTION_START_OR_RESUME_PRIMARY;
+            statue->current_running = first_slice->task_id;
+        } else {
+            if (first_slice->statue & PTBA_ALTERNATE_START) {
+                cur_task_statue->remaining_time = statue->task_info[task_no(first_slice->task_id)].alternate_time;
+            }
+
+            cur_task_statue->statue = JOB_STATUE_ALTERNATE_STARTED_OR_RESUMED;
+            action->task_no = task_no(first_slice->task_id);
+            action->action = ACTION_START_OR_RESUME_ALTERNATE;
+            statue->current_running = first_slice->task_id;
+        }
+        statue->current_running = first_slice->task_id;
+    }
+
+    statue->last_scheduling_point = current_time;
+    return first_slice->end;
+}
+
+time_slice *strip_time(time_slice_list tsl, time_hrts current_time) {
+    time_slice *tmp_slice = pop(tsl);
+
+    while (tmp_slice && tmp_slice->start < current_time) {
+        if (current_time < tmp_slice->end) {
+            tmp_slice->start = current_time;
+            push(tsl, tmp_slice);
+        }
+        tmp_slice = pop(tsl);
+    }
+
+    if (tmp_slice != NULL) push(tsl, tmp_slice);
+    return tmp_slice;
 }

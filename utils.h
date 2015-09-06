@@ -34,13 +34,10 @@ void *pop(list *);
 
 void push_right(list *, void *);
 
-void *pop_right(list *);
-
 void *first(list *);
 
 void insert_ordered(list *, void *, int(*)(const void *, const void *));
 
-void insert_ordered_r(list *, void *, int(*)(const void *, const void *, const void *), const void *);
 void insert_after(list *, list_node *, void *);
 
 list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p);

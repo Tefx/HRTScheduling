@@ -7,9 +7,9 @@
 #include <stdio.h>
 #include "utils.h"
 
-list_node *wrap_list_node(void *data, list_node *pred, list_node *next) {
+list_node *wrap_list_node(void *data, list_node *prev, list_node *next) {
     list_node *node = GC_MALLOC(sizeof(list_node));
-    node->prev = pred;
+    node->prev = prev;
     node->next = next;
     node->data = data;
     return node;
@@ -65,22 +65,6 @@ void push_right(list *l, void *d) {
         l->tail->next = wrap_list_node(d, l->tail, NULL);
         l->tail = l->tail->next;
     }
-}
-
-void *pop_right(list *l) {
-    list_node *ret = l->tail;
-    void *d = NULL;
-
-    if (ret) {
-        d = ret->data;
-        l->tail = ret->prev;
-
-        if (l->tail)
-            l->tail->next = NULL;
-        else
-            l->head = NULL;
-    }
-    return d;
 }
 
 void insert_after(list *l, list_node *p, void *data) {
@@ -144,18 +128,6 @@ list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s,
     }
 
     return nl;
-}
-
-void insert_ordered_r(list *l, void *d, int(*compare)(const void *, const void *, const void *), const void *p) {
-    list_node *tmp = l->head;
-
-    if (tmp == NULL || compare(tmp->data, d, p) > 0) {
-        push(l, d);
-    } else {
-        while (tmp != l->tail && compare(tmp->next->data, d, p) < 0)
-            tmp = tmp->next;
-        insert_after(l, tmp, d);
-    }
 }
 
 void print_list(list *l, void(*print)(void *)) {

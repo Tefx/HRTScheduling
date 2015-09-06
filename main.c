@@ -37,5 +37,8 @@ int main(void) {
     cancel_n_adjust_alternate(tsl, task_id(0, 2), ts);
     print_list(tsl, print_ts);
 
+    strip_time(tsl, 70);
+    print_list(tsl, print_ts);
+
     return 0;
 }

@@ -27,6 +27,6 @@ time_hrts cycle_length(period_task_info *ts, size_t n) {
     return cycle_length;
 }
 
-task_hrts task_id(__int64_t x, __int64_t y) {
+task_hrts task_id(task_hrts x, task_hrts y) {
     return (x << 32 | y);
 }
