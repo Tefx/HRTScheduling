@@ -20,7 +20,7 @@ task_hrts task_id(task_hrts x, task_hrts y);
 typedef long time_hrts;
 
 typedef enum {
-    ACTION_INIT = 0,
+    ACTION_EMPTY = 0,
     ACTION_NOTHING = 0x01,
     ACTION_START_OR_RESUME_PRIMARY = 0x02,
     ACTION_CANCEL_PRIMARY = 0x04,

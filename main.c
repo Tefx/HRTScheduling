@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <gc/gc.h>
 
 #include "scheduler.h"
 #include "ratemono.h"
@@ -16,11 +17,6 @@ void print_ev(void *ep) {
         printf("[%ld][F %ld-%ld]", ev->time, task_no(ev->task), job_no(ev->task));
 }
 
-void print_ts(void *tp) {
-    time_slice *ts = tp;
-    printf("[%ld-%ld][%ld-%ld/%d]", ts->start, ts->end, task_no(ts->task_id), job_no(ts->task_id), ts->statue);
-}
-
 void print_rt(void *tp) {
     task_rm *t = tp;
     printf("%ld-%ld:%ld/%ld/%ld/%s", task_no(t->tid), job_no(t->tid), t->period, t->st, t->rt,
@@ -28,17 +24,20 @@ void print_rt(void *tp) {
 }
 
 int main(void) {
-    period_task_info ts[] = {{30, 15, 15},
-                             {50, 20, 20}};
-    time_hrts cl = cycle_length(ts, 2);
-    time_slice_list tsl = rm_backward(ts, 2, cl);
+    period_task_info ts[] = {{24, 14, 2},
+                             {17, 6,  2},
+                             {10, 8,  2}};
+    statue_ptba *statue = prepare_statue_ptba(ts, 3);
+    time_hrts ct = 0;
+    action_schedule *action = GC_MALLOC(sizeof(action_schedule));
 
-    print_list(tsl, print_ts);
-    cancel_n_adjust_alternate(tsl, task_id(0, 2), ts);
-    print_list(tsl, print_ts);
+    //print_statue(statue);
 
-    strip_time(tsl, 70);
-    print_list(tsl, print_ts);
+    while (ct >= 0) {
+        ct = schedule_ptba(statue, ct, REASON_SCHEDULE_POINT, action);
+        //print_statue(statue);
+        printf("ct:%ld, action:[%ld->%u]\n", ct, action->task_no, action->action);
+    }
 
     return 0;
 }

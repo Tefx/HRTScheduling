@@ -83,7 +83,7 @@ void cancel_n_adjust_alternate(time_slice_list, task_hrts, period_task_info *);
 
 time_slice *strip_time(time_slice_list tsl, time_hrts current_time);
 
-time_hrts adjust_released(statue_ptba *statue, time_hrts current);
+void adjust_released(statue_ptba *statue, time_hrts current);
 
 task_hrts find_task_with_earliest_notice_time(statue_ptba *);
 
@@ -93,6 +93,10 @@ time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, sched
                               action_schedule *);
 
 time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason_ptba reason, action_schedule *);
+
+void print_ts(void *tp);
+
+void print_statue(statue_ptba *statue);
 
 #endif //HRTSCHEDULING_PTBA_H
 
