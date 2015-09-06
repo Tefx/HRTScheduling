@@ -3,6 +3,6 @@ project(HRTScheduling)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -O3 -Wall -Werror")
 
-set(SOURCE_FILES main.c scheduler.h scheduler.c ratemono.c ratemono.h ptba.c ptba.h utils.c utils.h simulate.c simulate.h)
+set(SOURCE_FILES main.c scheduler.h scheduler.c ratemono.c ratemono.h ptba.c ptba.h utils.c utils.h)
 add_executable(HRTScheduling ${SOURCE_FILES})
 target_link_libraries(HRTScheduling gc)
