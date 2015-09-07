@@ -14,7 +14,6 @@ typedef int64_t task_hrts;
 
 #define task_no(x) ((x)>>32)
 #define job_no(x) ((x)&0xffffffff)
-
 task_hrts task_id(task_hrts x, task_hrts y);
 
 typedef long time_hrts;
@@ -37,6 +36,11 @@ typedef struct {
     action_type_schedule action;
     task_hrts task_no;
 } action_schedule;
+
+typedef enum {
+    REASON_PRIMARY_CRASHED,
+    REASON_SCHEDULE_POINT
+} schedule_reason;
 
 time_hrts cycle_length(period_task_info *ts, size_t);
 

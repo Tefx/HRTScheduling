@@ -47,4 +47,9 @@ long schedule_rm(schedule_status_rm *ss, list *events, time_hrts current_time);
 
 task_list_rm alternate_to_backward_task_rm(period_task_info *ts, size_t n, time_hrts cycle_length);
 
+void print_ev(void *ep);
+
+void print_rt(void *tp);
+
+
 #endif //HRTSCHEDULING_RATEMONO_H

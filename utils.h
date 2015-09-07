@@ -40,6 +40,8 @@ void insert_ordered(list *, void *, int(*)(const void *, const void *));
 
 void insert_after(list *, list_node *, void *);
 
+void insert_before(list *, list_node *, void *);
+
 list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p);
 
 void *delete_node(list *, list_node *);

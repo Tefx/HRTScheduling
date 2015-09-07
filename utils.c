@@ -70,14 +70,24 @@ void push_right(list *l, void *d) {
 void insert_after(list *l, list_node *p, void *data) {
     list_node *node;
 
-    if (p == NULL)
-        push(l, data);
-    else if (p == l->tail)
+    if (p == NULL || p == l->tail)
         push_right(l, data);
     else {
         node = wrap_list_node(data, p, p->next);
         p->next->prev = node;
         p->next = node;
+    }
+}
+
+
+void insert_before(list *l, list_node *p, void *data) {
+    list_node *node;
+    if (p == NULL || p == l->head) {
+        push(l, data);
+    } else {
+        node = wrap_list_node(data, p->prev, p);
+        p->prev->next = node;
+        p->prev = node;
     }
 }
 
