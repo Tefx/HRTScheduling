@@ -2,7 +2,6 @@
 // Created by tefx on 8/25/15.
 //
 
-#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "utils.h"
@@ -19,7 +18,7 @@ task_hrts task_id(task_hrts x, task_hrts y);
 typedef long time_hrts;
 
 typedef enum {
-    ACTION_EMPTY = 0,
+    ACTION_FINISH = 0,
     ACTION_NOTHING = 0x01,
     ACTION_START_OR_RESUME_PRIMARY = 0x02,
     ACTION_CANCEL_PRIMARY = 0x04,
@@ -42,6 +41,6 @@ typedef enum {
     REASON_SCHEDULE_POINT
 } schedule_reason;
 
-time_hrts cycle_length(period_task_info *ts, size_t);
+time_hrts cycle_length(period_task_info *ts, task_hrts);
 
 #endif //HRTSCHEDULING_SCHEDULER_H_H

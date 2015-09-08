@@ -61,14 +61,17 @@ time_hrts calculate_next_point(schedule_status_rm *ss, time_hrts ct) {
 }
 
 time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
-    event_rm *ev;
+    event_rm *ev = NULL;
     task_rm *first_avail;
 
     move_tasks_wq2aq(ss, ct);
 
     if (ss->current_running && ss->current_running->rt <= 0) {
-        ev = GC_MALLOC(sizeof(event_rm));
-        ev->event = RM_EVENT_FINISHED;
+        ev = GC_MALLOC_ATOMIC(sizeof(event_rm));
+        if (ss->current_running->resumed)
+            ev->event = RM_EVENT_PAUSED;
+        else
+            ev->event = RM_EVENT_FINISHED;
         ev->task = ss->current_running->tid;
         ev->time = ct;
         push(es, ev);
@@ -78,12 +81,12 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
     if ((first_avail = (task_rm *) first(ss->available_queue))) {
         if (ss->current_running) {
             if (ss->current_running->period > first_avail->period) {
-                ev = GC_MALLOC(sizeof(event_rm));
+                ev = GC_MALLOC_ATOMIC(sizeof(event_rm));
                 ev->event = RM_EVENT_PAUSED;
                 ev->task = ss->current_running->tid;
                 ev->time = ct;
                 push(es, ev);
-                ss->current_running->paused = true;
+                //ss->current_running->paused = true;
                 insert_ordered(ss->available_queue, ss->current_running, compare_priority);
             } else {
                 goto finish;
@@ -91,7 +94,7 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
         }
 
         ss->current_running = pop(ss->available_queue);
-        ev = GC_MALLOC(sizeof(event_rm));
+        ev = GC_MALLOC_ATOMIC(sizeof(event_rm));
         if (ss->current_running->paused)
             ev->event = RM_EVENT_RESUMED;
         else
@@ -105,13 +108,13 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
     return calculate_next_point(ss, ct);
 }
 
-task_list_rm alternate_to_backward_task_rm(period_task_info *ts, size_t n, time_hrts cl) {
+task_list_rm alternate_to_backward_task_rm(period_task_info *ts, task_hrts n, time_hrts cl) {
     task_list_rm tl = new_list();
     task_rm *task;
 
-    for (size_t i = 0; i < n; i++)
-        for (size_t j = 0; j < cl / ts[i].period; j++) {
-            task = GC_MALLOC(sizeof(task_rm));
+    for (task_hrts i = 0; i < n; i++)
+        for (task_hrts j = 0; j < cl / ts[i].period; j++) {
+            task = GC_MALLOC_ATOMIC(sizeof(task_rm));
             task->tid = task_id(i, j);
             task->period = ts[i].period;
             task->rt = ts[i].alternate_time;

@@ -50,8 +50,12 @@ typedef struct {
 } task_statue_ptba;
 
 typedef struct {
+    period_task_info *task_info;
+    task_hrts num_task;
+    time_hrts cycle_length;
+
     time_slice_list alternate_ts;
-    task_statue_ptba *task_statue;
+
 
     time_hrts last_scheduling_point;
     task_hrts current_running;
@@ -61,12 +65,11 @@ typedef struct {
 
     list_node *alter_orig;
 
-    period_task_info *task_info;
-    size_t num_task;
-    time_hrts cycle_length;
+
+    task_statue_ptba *task_statue;
 } statue_ptba;
 
-time_slice_list rm_backward(period_task_info *ts, size_t n, time_hrts);
+time_slice_list rm_backward(period_task_info *ts, task_hrts n, time_hrts);
 
 time_slice_list rm_backward_from_task_list(task_list_rm ts, time_hrts cl, time_hrts ct, time_hrts end_time);
 
@@ -85,12 +88,14 @@ time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, sched
 time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason reason, action_schedule *);
 
 void print_ts(void *tp);
-void print_statue(statue_ptba *statue);
+
+void print_statue(statue_ptba *statue, size_t count);
 
 
 //Export
-statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n);
+statue_ptba *prepare_statue_ptba(period_task_info *ts, task_hrts n);
 
+statue_ptba *copy_statue(statue_ptba *);
 time_hrts schedule_ptba(statue_ptba *, time_hrts, schedule_reason, action_schedule *);
 
 #endif //HRTSCHEDULING_PTBA_H

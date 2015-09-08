@@ -4,12 +4,13 @@
 
 #include <gc/gc.h>
 #include <stdio.h>
+#include <string.h>
 #include "ptba.h"
 
 time_slice_list build_alternate_list(list *es, time_hrts cl, time_hrts start_time, time_hrts end_time) {
     event_rm *ev = pop(es);
     time_slice_list ts = new_list();
-    time_slice *cur = GC_MALLOC(sizeof(time_slice));
+    time_slice *cur = GC_MALLOC_ATOMIC(sizeof(time_slice));
 
     cur->start = cl - end_time;
     cur->task_id = -1;
@@ -26,7 +27,7 @@ time_slice_list build_alternate_list(list *es, time_hrts cl, time_hrts start_tim
             push_right(ts, cur);
         }
 
-        cur = GC_MALLOC(sizeof(time_slice));
+        cur = GC_MALLOC_ATOMIC(sizeof(time_slice));
         cur->start = cl - ev->time;
         cur->statue = PTBA_EMPTY;
 
@@ -110,8 +111,10 @@ task_list_rm pop_alternates_before(time_slice_list l, list_node *node, period_ta
 
         if ((tn = find_node_r(head_of(ts), tid_eq, &(ts_data(node)->task_id)))) {
             ((task_rm *) data_of(tn))->rt += ts_data(node)->end - ts_data(node)->start;
+            if (ts_data(node)->statue & PTBA_ALTERNATE_START)
+                ((task_rm *) data_of(tn))->resumed = false;
         } else {
-            task = GC_MALLOC(sizeof(task_rm));
+            task = GC_MALLOC_ATOMIC(sizeof(task_rm));
             task->tid = ts_data(node)->task_id;
             task->rt = ts_data(node)->end - ts_data(node)->start;
             task->period = task_info[task_no(ts_data(node)->task_id)].period;
@@ -123,6 +126,13 @@ task_list_rm pop_alternates_before(time_slice_list l, list_node *node, period_ta
                 task->paused = true;
             else
                 task->paused = false;
+
+            if (ts_data(node)->statue & PTBA_ALTERNATE_RESUME)
+                task->resumed = true;
+            else
+                task->resumed = false;
+
+
             push(ts, task);
         }
 
@@ -160,25 +170,30 @@ void cancel_n_adjust_alternate(time_slice_list l, task_hrts tid, period_task_inf
     concat_before(l, l_before);
 }
 
-time_slice_list rm_backward(period_task_info *ts, size_t n, time_hrts cl) {
+time_slice_list rm_backward(period_task_info *ts, task_hrts n, time_hrts cl) {
     task_list_rm tl = alternate_to_backward_task_rm(ts, n, cl);
     return rm_backward_from_task_list(tl, cl, 0, cl);
 }
 
-statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n) {
+statue_ptba *prepare_statue_ptba(period_task_info *ts, task_hrts n) {
     statue_ptba *statue = GC_MALLOC(sizeof(statue_ptba));
-    statue->task_info = ts;
+    statue->task_info = GC_MALLOC_ATOMIC(sizeof(period_task_info) * n);
+    memcpy(statue->task_info, ts, sizeof(period_task_info) * n);
     statue->num_task = n;
     statue->cycle_length = cycle_length(ts, n);
+
     statue->alternate_ts = rm_backward(ts, n, statue->cycle_length);
-    statue->task_statue = GC_MALLOC_ATOMIC(sizeof(task_statue_ptba) * n);
+
     statue->last_scheduling_point = 0;
     statue->current_running = -1;
+
     statue->predict_table = NULL;
     statue->pt_task = -1;
+
     statue->alter_orig = NULL;
 
-    for (size_t i = 0; i < n; i++) {
+    statue->task_statue = GC_MALLOC_ATOMIC(sizeof(task_statue_ptba) * n);
+    for (task_hrts i = 0; i < n; i++) {
         statue->task_statue[i].job = 0;
         statue->task_statue[i].remaining_time = ts[i].running_time;
         statue->task_statue[i].statue = JOB_STATUE_RELEASED;
@@ -186,6 +201,29 @@ statue_ptba *prepare_statue_ptba(period_task_info *ts, size_t n) {
 
     return statue;
 }
+
+statue_ptba *copy_statue(statue_ptba *s) {
+    statue_ptba *s1 = GC_MALLOC(sizeof(statue_ptba));
+    s1->task_info = GC_MALLOC_ATOMIC(sizeof(period_task_info) * s->num_task);
+    memcpy(s1->task_info, s->task_info, sizeof(period_task_info) * s->num_task);
+    s1->num_task = s->num_task;
+    s1->cycle_length = s->cycle_length;
+    s1->alternate_ts = copy_list(s->alternate_ts, sizeof(time_slice));
+    s1->last_scheduling_point = 0;
+    s1->current_running = -1;
+    s1->predict_table = NULL;
+    s1->pt_task = -1;
+    s1->alter_orig = NULL;
+    s1->task_statue = GC_MALLOC_ATOMIC(sizeof(task_statue_ptba) * s1->num_task);
+    for (task_hrts i = 0; i < s1->num_task; i++) {
+        s1->task_statue[i].job = 0;
+        s1->task_statue[i].remaining_time = s1->task_info[i].running_time;
+        s1->task_statue[i].statue = JOB_STATUE_RELEASED;
+    }
+
+    return s1;
+}
+
 
 bool availability_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid) {
     list_node *tmp = head_of(tsl);
@@ -220,7 +258,7 @@ bool availability_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid
         if (ts_data(tmp)->statue & PTBA_FREE) {
             if (ts_data(tmp)->start < release_time) {
                 if (ts_data(tmp)->end > release_time) {
-                    t = GC_MALLOC(sizeof(time_slice));
+                    t = GC_MALLOC_ATOMIC(sizeof(time_slice));
                     t->start = release_time;
                     t->end = ts_data(tmp)->end;
                     t->task_id = tid;
@@ -237,7 +275,7 @@ bool availability_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid
             }
 
             if (needed_time < 0) {
-                t = GC_MALLOC(sizeof(time_slice));
+                t = GC_MALLOC_ATOMIC(sizeof(time_slice));
                 t->end = ts_data(tmp)->end;
                 t->start = t->end + needed_time;
                 t->statue = PTBA_FREE;
@@ -287,7 +325,7 @@ bool predict(statue_ptba *statue, task_hrts tid) {
 
 void adjust_released(statue_ptba *statue, time_hrts current_time) {
     time_hrts tmp_release_time;
-    for (size_t i = 0; i < statue->num_task; i++) {
+    for (task_hrts i = 0; i < statue->num_task; i++) {
         if (statue->task_statue[i].statue == JOB_STATUE_FINISHED) {
             tmp_release_time = statue->task_info[i].period * (statue->task_statue[i].job + 1);
             if (tmp_release_time <= current_time) {
@@ -306,7 +344,7 @@ task_hrts find_task_with_earliest_notice_time(statue_ptba *statue) {
     time_hrts least_notice_time = statue->cycle_length + 1;
     task_hrts selected_next_primary = -1;
 
-    for (size_t i = 0; i < statue->num_task; i++) {
+    for (task_hrts i = 0; i < statue->num_task; i++) {
         job_statue = statue->task_statue[i].statue;
         if (job_statue == JOB_STATUE_RELEASED) {
             tmp_tid = task_id(i, statue->task_statue[i].job);
@@ -324,9 +362,13 @@ task_hrts find_task_with_earliest_notice_time(statue_ptba *statue) {
 time_hrts schedule_ptba(statue_ptba *statue, time_hrts current_time, schedule_reason reason,
                         action_schedule *action) {
 
+    action->action = ACTION_FINISH;
+    action->task_no = -1;
+
+
+
     if (strip_time(statue->alternate_ts, current_time) == 0) {
-        action->action = ACTION_EMPTY;
-        action->task_no = -1;
+        statue->current_running = -1;
         return -1;
     }
 
@@ -347,8 +389,7 @@ time_hrts schedule_ptba(statue_ptba *statue, time_hrts current_time, schedule_re
         }
     }
 
-    action->action = ACTION_EMPTY;
-    action->task_no = -1;
+    adjust_released(statue, current_time);
 
     if (statue->predict_table)
         return schedule_ptba_PT(statue, current_time, reason, action);
@@ -384,8 +425,6 @@ time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, sched
     } else {
         task_hrts selected_next_primary;
 
-        adjust_released(statue, current_time);
-
         while (1) {
             selected_next_primary = find_task_with_earliest_notice_time(statue);
             if (selected_next_primary < 0) break;
@@ -401,12 +440,9 @@ time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, sched
         }
 
         try_EIT(statue, action);
-        //action->task_no = -1;
-        //action->action = ACTION_NOTHING;
-        //statue->current_running = -1;
 
         time_hrts next_schedule_time = statue->cycle_length;
-        for (size_t i = 0; i < statue->num_task; i++) {
+        for (task_hrts i = 0; i < statue->num_task; i++) {
             if (statue->task_statue[i].statue == JOB_STATUE_FINISHED) {
                 time_hrts tmp_release_time = statue->task_info[i].period * (statue->task_statue[i].job + 1);
                 if (tmp_release_time < next_schedule_time)
@@ -429,8 +465,8 @@ time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule
     first_slice = strip_time(statue->predict_table, current_time);
 
     if (reason == REASON_PRIMARY_CRASHED ||
-            (statue->task_statue[task_no(statue->current_running)].statue == JOB_STATUE_FINISHED &&
-         statue->current_running == statue->pt_task)) {
+            (statue->current_running == statue->pt_task &&
+             statue->task_statue[task_no(statue->current_running)].statue == JOB_STATUE_FINISHED)) {
         statue->pt_task = -1;
         statue->predict_table = NULL;
         return schedule_ptba_nonPT(statue, current_time, reason, action);
@@ -461,35 +497,34 @@ time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule
 }
 
 time_slice *strip_time(time_slice_list tsl, time_hrts current_time) {
-    time_slice *tmp_slice = pop(tsl);
+    time_slice *tmp_slice = first(tsl);
 
-    while (tmp_slice && tmp_slice->start < current_time) {
-        if (current_time < tmp_slice->end) {
-            tmp_slice->start = current_time;
-            push(tsl, tmp_slice);
-        }
-        tmp_slice = pop(tsl);
+    while (tmp_slice && tmp_slice->end <= current_time) {
+        pop(tsl);
+        tmp_slice = first(tsl);
     }
 
-    if (tmp_slice != NULL) push(tsl, tmp_slice);
+    if (tmp_slice && tmp_slice->start < current_time)
+        tmp_slice->start = current_time;
+
     return tmp_slice;
 }
 
 bool try_EIT(statue_ptba *statue, action_schedule *action) {
     task_hrts tmp = -1;
     task_hrts adv_tid;
-    time_hrts tmp_period = statue->cycle_length;
+    time_hrts tmp_period = 0;
     time_hrts len_orig;
     time_slice *first_ts;
     time_hrts len_first;
     time_slice *tmp_ts;
 
-    for (size_t i = 0; i < statue->num_task; i++) {
-        if (((statue->task_statue[i].statue == JOB_STATUE_PRIMARY_TERMINATED) ||
-             (statue->task_statue[i].statue == JOB_STATUE_ALTERNATE_RUNNING)) &&
-            statue->task_info[i].period < tmp_period) {
+    for (task_hrts i = 0; i < statue->num_task; i++) {
+        if ((statue->task_statue[i].statue == JOB_STATUE_PRIMARY_TERMINATED ||
+             statue->task_statue[i].statue == JOB_STATUE_ALTERNATE_RUNNING) &&
+            statue->task_info[i].period > tmp_period) {
             tmp_period = statue->task_info[i].period;
-            tmp = i;
+            tmp = (task_hrts) i;
         }
     }
 
@@ -513,7 +548,7 @@ bool try_EIT(statue_ptba *statue, action_schedule *action) {
         len_first = first_ts->end - first_ts->start;
 
         if (len_orig < len_first) {
-            tmp_ts = GC_MALLOC(sizeof(time_slice));
+            tmp_ts = GC_MALLOC_ATOMIC(sizeof(time_slice));
             tmp_ts->end = first_ts->end;
             tmp_ts->start = first_ts->start + len_orig;
             tmp_ts->statue = PTBA_FREE;
@@ -539,13 +574,20 @@ void clean_EIT(statue_ptba *statue, time_hrts current_time) {
     } else {
         cur_task_statue->statue = JOB_STATUE_ALTERNATE_RUNNING;
         if (len_orig > len_used) {
-            tmp = GC_MALLOC(sizeof(time_slice));
-            tmp->start = ts_data(statue->alter_orig)->start;
-            tmp->end = tmp->start + len_used;
-            tmp->task_id = -1;
-            tmp->statue = PTBA_FREE;
-            ts_data(statue->alter_orig)->start = tmp->end;
-            insert_before(statue->alternate_ts, statue->alter_orig, tmp);
+            if (statue->alter_orig->prev && ts_data(statue->alter_orig->prev)->statue & PTBA_FREE) {
+                ts_data(statue->alter_orig->prev)->end += len_used;
+                ts_data(statue->alter_orig)->start += len_used;
+            } else {
+                tmp = GC_MALLOC_ATOMIC(sizeof(time_slice));
+                tmp->start = ts_data(statue->alter_orig)->start;
+                tmp->end = tmp->start + len_used;
+                tmp->task_id = -1;
+                tmp->statue = PTBA_FREE;
+                ts_data(statue->alter_orig)->start = tmp->end;
+                insert_before(statue->alternate_ts, statue->alter_orig, tmp);
+            }
+            ts_data(statue->alter_orig)->statue &= ~PTBA_ALTERNATE_START;
+            ts_data(statue->alter_orig)->statue |= PTBA_ALTERNATE_RESUME;
         } else {
             ts_data(statue->alter_orig)->statue = PTBA_FREE;
             ts_data(statue->alter_orig)->task_id = -1;
@@ -559,18 +601,18 @@ void print_ts(void *tp) {
     printf("[%ld-%ld][%ld-%ld/%d]", ts->start, ts->end, task_no(ts->task_id), job_no(ts->task_id), ts->statue);
 }
 
-void print_statue(statue_ptba *statue) {
+void print_statue(statue_ptba *statue, size_t count) {
     printf("AT: ");
-    print_list(statue->alternate_ts, print_ts);
+    print_list(statue->alternate_ts, print_ts, count);
     printf("PT: ");
     if (statue->predict_table)
-        print_list(statue->predict_table, print_ts);
+        print_list(statue->predict_table, print_ts, count);
     else
         printf("NULL\n");
 
     printf("TS: ");
 
-    for (size_t i = 0; i < statue->num_task; i++) {
+    for (task_hrts i = 0; i < statue->num_task; i++) {
         printf("<[%ld]%ld/%ld/%u>", i, statue->task_statue[i].job, statue->task_statue[i].remaining_time,
                statue->task_statue[i].statue);
     }

@@ -2,7 +2,6 @@
 // Created by tefx on 8/25/15.
 //
 
-#include <stddef.h>
 #include <stdbool.h>
 #include "scheduler.h"
 #include "utils.h"
@@ -16,6 +15,7 @@ typedef struct {
     time_hrts period;
     time_hrts rt;
     bool paused;
+    bool resumed;
 } task_rm;
 
 typedef list *task_list_rm;
@@ -45,7 +45,7 @@ schedule_status_rm *init_status_rm(task_list_rm);
 
 long schedule_rm(schedule_status_rm *ss, list *events, time_hrts current_time);
 
-task_list_rm alternate_to_backward_task_rm(period_task_info *ts, size_t n, time_hrts cycle_length);
+task_list_rm alternate_to_backward_task_rm(period_task_info *ts, task_hrts n, time_hrts cycle_length);
 
 void print_ev(void *ep);
 

@@ -131,7 +131,7 @@ list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s,
     list *nl = new_list();
 
     while (tmp && (!filter(tmp->data, p))) {
-        copy = GC_MALLOC(s);
+        copy = GC_MALLOC_ATOMIC(s);
         memcpy(copy, tmp->data, s);
         push_right(nl, copy);
         tmp = tmp->next;
@@ -140,13 +140,29 @@ list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s,
     return nl;
 }
 
-void print_list(list *l, void(*print)(void *)) {
+list *copy_list(list *l, size_t s) {
+    list *nl = new_list();
     list_node *tmp = l->head;
+    void *copy = NULL;
 
     while (tmp) {
+        copy = GC_MALLOC_ATOMIC(s);
+        memcpy(copy, tmp->data, s);
+        push_right(nl, copy);
+        tmp = tmp->next;
+    }
+
+    return nl;
+}
+
+void print_list(list *l, void(*print)(void *), size_t count) {
+    list_node *tmp = l->head;
+
+    while (tmp && count > 0) {
         print(tmp->data);
         printf("=>");
         tmp = tmp->next;
+        count--;
     }
     printf("nil\n");
 }

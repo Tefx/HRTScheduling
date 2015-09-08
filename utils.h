@@ -5,6 +5,7 @@
 #ifndef HRTSCHEDULING_UTILS_H
 #define HRTSCHEDULING_UTILS_H
 
+#include <stddef.h>
 #include <stdbool.h>
 
 typedef struct list_node_struct {
@@ -42,6 +43,7 @@ void insert_after(list *, list_node *, void *);
 
 void insert_before(list *, list_node *, void *);
 
+list *copy_list(list *l, size_t s);
 list *copy_until_r(list *l, bool(*filter)(const void *, const void *), size_t s, const void *p);
 
 void *delete_node(list *, list_node *);
@@ -50,7 +52,7 @@ list_node *find_node_r(list_node *, bool(*)(const void *, const void *), const v
 
 void concat_before(list *, list *);
 
-void print_list(list *, void(*)(void *));
+void print_list(list *, void(*)(void *), size_t);
 
 
 #define COMPARE(x, y, t, field) (((((t*)(x))->field)>(((t*)(y))->field))?1:((((t*)(x))->field==((t*)(y))->field)?0:-1))
