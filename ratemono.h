@@ -45,8 +45,6 @@ schedule_status_rm *init_status_rm(task_list_rm);
 
 long schedule_rm(schedule_status_rm *ss, list *events, time_hrts current_time);
 
-task_list_rm alternate_to_backward_task_rm(period_task_info *ts, task_hrts n, time_hrts cycle_length);
-
 void print_ev(void *ep);
 
 void print_rt(void *tp);

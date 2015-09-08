@@ -34,6 +34,12 @@ typedef struct {
 
 typedef list *time_slice_list;
 
+typedef struct {
+    time_hrts period;
+    time_hrts primary_time;
+    time_hrts alternate_time;
+} period_info_ptba;
+
 typedef enum {
     JOB_STATUE_RELEASED = 0x01,
     JOB_STATUE_FINISHED = 0x02,
@@ -50,7 +56,7 @@ typedef struct {
 } task_statue_ptba;
 
 typedef struct {
-    period_task_info *task_info;
+    period_info_ptba *task_info;
     task_hrts num_task;
     time_hrts cycle_length;
 
@@ -69,34 +75,32 @@ typedef struct {
     task_statue_ptba *task_statue;
 } statue_ptba;
 
-time_slice_list rm_backward(period_task_info *ts, task_hrts n, time_hrts);
-
+time_slice_list rm_backward(period_info_ptba *ts, task_hrts n, time_hrts);
 time_slice_list rm_backward_from_task_list(task_list_rm ts, time_hrts cl, time_hrts ct, time_hrts end_time);
 
-void cancel_n_adjust_alternate(time_slice_list, task_hrts, period_task_info *);
+task_list_rm alternate_to_backward_task_rm(period_info_ptba *ts, task_hrts n, time_hrts cycle_length);
+
+void cancel_n_adjust_alternate(time_slice_list, task_hrts, period_info_ptba *);
 time_slice *strip_time(time_slice_list tsl, time_hrts current_time);
 void adjust_released(statue_ptba *statue, time_hrts current);
 task_hrts find_task_with_earliest_notice_time(statue_ptba *);
 
-bool try_EIT(statue_ptba *, action_schedule *);
-
+bool try_EIT(statue_ptba *, action_type *);
 void clean_EIT(statue_ptba *, time_hrts);
 
 time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, schedule_reason reason,
-                              action_schedule *);
+                              action_type *);
 
-time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason reason, action_schedule *);
+time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule_reason reason, action_type *);
 
 void print_ts(void *tp);
-
 void print_statue(statue_ptba *statue, size_t count);
 
-
 //Export
-statue_ptba *prepare_statue_ptba(period_task_info *ts, task_hrts n);
-
+statue_ptba *prepare_statue_ptba(task_info *ts, task_hrts n);
 statue_ptba *copy_statue(statue_ptba *);
-time_hrts schedule_ptba(statue_ptba *, time_hrts, schedule_reason, action_schedule *);
+
+time_hrts schedule_ptba(statue_ptba *, time_hrts, schedule_reason, action_type *);
 
 #endif //HRTSCHEDULING_PTBA_H
 

@@ -23,24 +23,28 @@ typedef enum {
     ACTION_START_OR_RESUME_PRIMARY = 0x02,
     ACTION_CANCEL_PRIMARY = 0x04,
     ACTION_START_OR_RESUME_ALTERNATE = 0x08
-} action_type_schedule;
+} operation_type;
 
 typedef struct {
+    char *primary_path;
+    char **primary_argv;
+    char *alternate_path;
+    char **alternate_argv;
     time_hrts period;
-    time_hrts running_time;
+    time_hrts primary_time;
     time_hrts alternate_time;
-} period_task_info;
+} task_info;
 
 typedef struct {
-    action_type_schedule action;
+    operation_type action;
     task_hrts task_no;
-} action_schedule;
+} action_type;
 
 typedef enum {
     REASON_PRIMARY_CRASHED,
     REASON_SCHEDULE_POINT
 } schedule_reason;
 
-time_hrts cycle_length(period_task_info *ts, task_hrts);
+time_hrts cycle_length(task_info *ts, task_hrts);
 
 #endif //HRTSCHEDULING_SCHEDULER_H_H

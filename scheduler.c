@@ -18,7 +18,7 @@ time_hrts lcm(time_hrts m, time_hrts n) {
     return m / gcd(m, n) * n;
 }
 
-time_hrts cycle_length(period_task_info *ts, task_hrts n) {
+time_hrts cycle_length(task_info *ts, task_hrts n) {
     time_hrts cycle_length = 1;
 
     for (task_hrts i = 0; i < n; i++)
