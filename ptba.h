@@ -6,9 +6,9 @@
 #define HRTSCHEDULING_PTBA_H
 
 #include <stdbool.h>
-#include "scheduler.h"
+#include "def.h"
 #include "ratemono.h"
-#include "utils.h"
+#include "list.h"
 
 typedef enum {
     PTBA_EMPTY = 0,

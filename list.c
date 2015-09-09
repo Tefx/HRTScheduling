@@ -5,7 +5,7 @@
 #include <gc/gc.h>
 #include <string.h>
 #include <stdio.h>
-#include "utils.h"
+#include "list.h"
 
 list_node *wrap_list_node(void *data, list_node *prev, list_node *next) {
     list_node *node = GC_MALLOC(sizeof(list_node));

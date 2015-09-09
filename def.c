@@ -2,7 +2,7 @@
 // Created by tefx on 8/27/15.
 //
 
-#include "scheduler.h"
+#include "def.h"
 
 time_hrts gcd(time_hrts m, time_hrts n) {
     time_hrts tmp;

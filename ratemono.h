@@ -3,8 +3,8 @@
 //
 
 #include <stdbool.h>
-#include "scheduler.h"
-#include "utils.h"
+#include "def.h"
+#include "list.h"
 
 #ifndef HRTSCHEDULING_RATEMONO_H
 #define HRTSCHEDULING_RATEMONO_H

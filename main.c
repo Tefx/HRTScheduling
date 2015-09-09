@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <gc/gc.h>
-#include "scheduler.h"
+#include "def.h"
 #include "ptba.h"
-#include "process.h"
+#include "schedule.h"
+#include "parse.h"
 
 void test_alg(task_info *tis, task_hrts n) {
 //    period_info_ptba ts[] = {{10, 4, 3},
@@ -17,6 +18,7 @@ void test_alg(task_info *tis, task_hrts n) {
 //                             {24,  7,  3},
 //                             {39,  9,  7},
 //                             {144, 23, 17}};
+
     time_hrts current_time, next_time;
 
     statue_ptba *statue = prepare_statue_ptba(tis, n);
@@ -32,30 +34,29 @@ void test_alg(task_info *tis, task_hrts n) {
     } while (action->action != ACTION_FINISH);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     GC_INIT();
-    //GC_enable_incremental();
 
-    char pproc_path[] = "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc";
+//    char pproc_path[] = "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc";
+//
+//    char *primary_argv_0[] = {"0-P", "20", "0.6", NULL};
+//    char *alternate_argv_0[] = {"0-A", "15", "0", NULL};
+//
+//    char *primary_argv_1[] = {"1-P", "15", "0.4", NULL};
+//    char *alternate_argv_1[] = {"1-A", "10", "0", NULL};
+//
+//    char *primary_argv_2[] = {"2-P", "4", "0.2", NULL};
+//    char *alternate_argv_2[] = {"2-A", "4", "0", NULL};
+//
+//    char *primary_argv_3[] = {"3-P", "7", "0.2", NULL};
+//    char *alternate_argv_3[] = {"3-A", "4", "0", NULL};
+//
+//    task_info tis[] = {{pproc_path, primary_argv_0, pproc_path, alternate_argv_0, 50, 20, 15},
+//                       {pproc_path, primary_argv_1, pproc_path, alternate_argv_1, 40, 15, 10},
+//                       {pproc_path, primary_argv_2, pproc_path, alternate_argv_2, 20, 4,  4},
+//                       {pproc_path, primary_argv_3, pproc_path, alternate_argv_3, 21, 7,  4},};
 
-    char *primary_argv_0[] = {"1-P", "20", "0.4", NULL};
-    char *alternate_argv_0[] = {"1-A", "15", "0", NULL};
-
-    char *primary_argv_1[] = {"0-P", "15", "0.4", NULL};
-    char *alternate_argv_1[] = {"0-A", "10", "0", NULL};
-
-    char *primary_argv_2[] = {"2-P", "4", "0.2", NULL};
-    char *alternate_argv_2[] = {"2-A", "4", "0", NULL};
-
-    char *primary_argv_3[] = {"3-P", "7", "0.2", NULL};
-    char *alternate_argv_3[] = {"3-A", "4", "0", NULL};
-
-    task_info tis[] = {{pproc_path, primary_argv_0, pproc_path, alternate_argv_0, 50, 20, 15},
-                       {pproc_path, primary_argv_1, pproc_path, alternate_argv_1, 40, 15, 10},
-                       {pproc_path, primary_argv_2, pproc_path, alternate_argv_2, 20, 4,  4},
-                       {pproc_path, primary_argv_3, pproc_path, alternate_argv_3, 21, 7,  4},};
-
-    //test_alg(tis, 2);
-
-    start_scheduling(tis, 2);
+    task_hrts num;
+    task_info *tis = parse_config(argv[1], &num);
+    start_scheduling(tis, num);
 }

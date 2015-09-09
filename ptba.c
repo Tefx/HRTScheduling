@@ -436,15 +436,16 @@ time_hrts schedule_ptba_nonPT(statue_ptba *statue, time_hrts current_time, sched
     if (!(first_slice->statue & PTBA_FREE)) {
         task_statue_ptba *cur_task_statue = statue->task_statue + task_no(first_slice->task_id);
         statue->current_running = first_slice->task_id;
-        action->action = ACTION_START_OR_RESUME_ALTERNATE;
         action->task_no = task_no(first_slice->task_id);
 
         if (first_slice->statue & PTBA_ALTERNATE_START) {
+            action->action |= ACTION_START_ALTERNATE;
             cur_task_statue->remaining_time = statue->task_info[task_no(first_slice->task_id)].alternate_time;
             if (cur_task_statue->statue & JOB_STATUE_PRIMARY_RUNNING)
                 action->action |= ACTION_CANCEL_PRIMARY;
             cur_task_statue->statue = JOB_STATUE_ALTERNATE_RUNNING;
-        }
+        } else
+            action->action |= ACTION_RESUME_ALTERNATE;
 
         statue->last_scheduling_point = current_time;
         return first_slice->end;
@@ -505,14 +506,20 @@ time_hrts schedule_ptba_PT(statue_ptba *statue, time_hrts current_time, schedule
     } else {
         task_statue_ptba *cur_task_statue = statue->task_statue + task_no(first_slice->task_id);
         if (first_slice->statue & PTBA_PRIMARY_USED) {
-            cur_task_statue->statue = JOB_STATUE_PRIMARY_RUNNING;
-            action->action = ACTION_START_OR_RESUME_PRIMARY;
+            if (cur_task_statue->statue != JOB_STATUE_PRIMARY_RUNNING) {
+                cur_task_statue->statue = JOB_STATUE_PRIMARY_RUNNING;
+                action->action |= ACTION_START_PRIMARY;
+            } else {
+                action->action |= ACTION_RESUME_PRIMARY;
+            }
         } else {
             if (first_slice->statue & PTBA_ALTERNATE_START) {
                 cur_task_statue->remaining_time = statue->task_info[task_no(first_slice->task_id)].alternate_time;
                 cur_task_statue->statue = JOB_STATUE_ALTERNATE_RUNNING;
+                action->action |= ACTION_START_ALTERNATE;
+            } else {
+                action->action |= ACTION_RESUME_ALTERNATE;
             }
-            action->action = ACTION_START_OR_RESUME_ALTERNATE;
         }
         action->task_no = task_no(first_slice->task_id);
         statue->current_running = first_slice->task_id;
@@ -563,7 +570,10 @@ bool try_EIT(statue_ptba *statue, action_type *action) {
         adv_tid = task_id(tmp, statue->task_statue[tmp].job);
         statue->alter_orig = find_node_r(head_of(statue->alternate_ts), captured_by_task, &adv_tid);
         action->task_no = tmp;
-        action->action = ACTION_START_OR_RESUME_ALTERNATE;
+        if (ts_data(statue->alter_orig)->statue & PTBA_ALTERNATE_START)
+            action->action |= ACTION_START_ALTERNATE;
+        else
+            action->action |= ACTION_RESUME_ALTERNATE;
         statue->current_running = adv_tid;
         if (statue->task_statue[tmp].remaining_time == 0)
             statue->task_statue[tmp].remaining_time = statue->task_info[tmp].alternate_time;

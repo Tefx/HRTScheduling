@@ -4,7 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "utils.h"
+#include "list.h"
 
 #ifndef HRTSCHEDULING_SCHEDULER_H_H
 #define HRTSCHEDULING_SCHEDULER_H_H
@@ -20,9 +20,11 @@ typedef long time_hrts;
 typedef enum {
     ACTION_FINISH = 0,
     ACTION_NOTHING = 0x01,
-    ACTION_START_OR_RESUME_PRIMARY = 0x02,
-    ACTION_CANCEL_PRIMARY = 0x04,
-    ACTION_START_OR_RESUME_ALTERNATE = 0x08
+    ACTION_START_PRIMARY = 0x02,
+    ACTION_RESUME_PRIMARY = 0x04,
+    ACTION_CANCEL_PRIMARY = 0x08,
+    ACTION_START_ALTERNATE = 0x10,
+    ACTION_RESUME_ALTERNATE = 0x20
 } operation_type;
 
 typedef struct {

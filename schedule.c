@@ -9,7 +9,7 @@
 #include <gc/gc.h>
 #include <stdio.h>
 #include <time.h>
-#include "process.h"
+#include "schedule.h"
 
 static task_record *TR;
 time_t timer = 0;
@@ -77,6 +77,34 @@ int task_action(task_hrts tid, int sig) {
     return kill(TR->pids[tid], sig);
 }
 
+void print_info(time_hrts ct, action_type *a, task_hrts paused) {
+
+    printf("[+%lds]>>> ", ct);
+
+    if (paused >= 0) {
+        if (paused == a->task_no)
+            printf("Continue Task %ld Job %ld.\n", a->task_no, TR->job_count[a->task_no]);
+        else
+            printf("Pause Task %ld Job %ld & ", paused, TR->job_count[paused]);
+    }
+
+    if (a->action == ACTION_FINISH) {
+        printf("Scheduling cycle finished.\n");
+    } else if (a->action & ACTION_NOTHING) {
+        printf("Idle.\n");
+    } else if (paused != a->task_no) {
+        if (a->action & ACTION_START_PRIMARY) {
+            printf("Start Task %ld Job %ld (primary).\n", a->task_no, TR->job_count[a->task_no]);
+        } else if (a->action & ACTION_RESUME_PRIMARY) {
+            printf("Resume Task %ld Job %ld (primary).\n", a->task_no, TR->job_count[a->task_no]);
+        } else if (a->action & ACTION_START_ALTERNATE) {
+            printf("Start Task %ld Job %ld (alternate).\n", a->task_no, TR->job_count[a->task_no]);
+        } else if (a->action & ACTION_RESUME_ALTERNATE) {
+            printf("Resume Task %ld Job %ld (alternate).\n", a->task_no, TR->job_count[a->task_no]);
+        }
+    }
+}
+
 bool schedule(schedule_reason reason) {
 
     //print_statue(TR->schedule_statue, 10);
@@ -85,11 +113,10 @@ bool schedule(schedule_reason reason) {
     time_hrts current_time = TR->last_point + new_time - timer;
     time_hrts next_time;
     action_type *act = GC_MALLOC(sizeof(action_type));
-
-    printf("[%lds]>>> ", current_time);
+    task_hrts paused_task = -1;
 
     if (TR->running >= 0) {
-        printf("Pause Task %ld Job %ld & ", TR->running, TR->job_count[TR->running]);
+        paused_task = TR->running;
         task_action(TR->running, SIGSTOP);
         TR->running = -1;
     }
@@ -97,42 +124,33 @@ bool schedule(schedule_reason reason) {
     TR->last_point = current_time;
     next_time = schedule_ptba(TR->schedule_statue, current_time, reason, act);
 
-    if (act->action == ACTION_FINISH) {
-        printf("Scheduling finished.\n");
-        return false;
-    }
-
     if (act->action & ACTION_CANCEL_PRIMARY) {
         task_action(act->task_no, SIGKILL);
         TR->running = -1;
         TR->pids[act->task_no] = 0;
     }
 
-    if (act->action & ACTION_START_OR_RESUME_PRIMARY) {
-        if (TR->pids[act->task_no] > 0) {
-            task_action(act->task_no, SIGCONT);
-            TR->running = act->task_no;
-            printf("Resume Task %ld Job %ld (primary).\n", TR->running, TR->job_count[TR->running]);
-        } else {
-            start_primary(act->task_no);
-            printf("Start Task %ld Job %ld (primary).\n", TR->running, TR->job_count[TR->running]);
-        }
-    } else if (act->action & ACTION_START_OR_RESUME_ALTERNATE) {
-        if (TR->pids[act->task_no] > 0) {
-            task_action(act->task_no, SIGCONT);
-            TR->running = act->task_no;
-            printf("Resume Task %ld Job %ld (alternate).\n", TR->running, TR->job_count[TR->running]);
-        } else {
-            start_alternate(act->task_no);
-            printf("Start Task %ld Job %ld (alternate).\n", TR->running, TR->job_count[TR->running]);
-        }
-    } else if (act->action & ACTION_NOTHING) {
-        printf("Idle.\n");
+    if (act->action & ACTION_START_PRIMARY) {
+        start_primary(act->task_no);
+    } else if (act->action & ACTION_RESUME_PRIMARY) {
+        task_action(act->task_no, SIGCONT);
+        TR->running = act->task_no;
+    } else if (act->action & ACTION_START_ALTERNATE) {
+        start_alternate(act->task_no);
+    } else if (act->action & ACTION_RESUME_ALTERNATE) {
+        task_action(act->task_no, SIGCONT);
+        TR->running = act->task_no;
     }
 
-    timer = new_time;
-    alarm((unsigned int) (next_time - current_time));
-    return true;
+    print_info(current_time, act, paused_task);
+
+    if (act->action == ACTION_FINISH) {
+        return false;
+    } else {
+        timer = new_time;
+        alarm((unsigned int) (next_time - current_time));
+        return true;
+    }
 }
 
 void sighandler_SIGCHLD(int sig) {

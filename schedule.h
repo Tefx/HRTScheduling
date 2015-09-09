@@ -6,7 +6,7 @@
 #define HRTSCHEDULING_PROCESS_H
 
 #include <sys/types.h>
-#include "scheduler.h"
+#include "def.h"
 #include "ptba.h"
 
 typedef struct {
