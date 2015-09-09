@@ -73,7 +73,7 @@ void print_info(time_hrts ct, action_type *a, task_hrts paused) {
 
     if (paused >= 0) {
         if (paused == a->task_no)
-            printf("Continue Task %ld Job %ld.\n", a->task_no, TR->job_count[a->task_no]);
+            printf("Continue current task.\n");
         else
             printf("Pause Task %ld Job %ld & ", paused, TR->job_count[paused]);
     }

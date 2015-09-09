@@ -165,6 +165,10 @@ void cancel_n_adjust_alternate(time_slice_list l, task_hrts tid, period_info_ptb
     if (not_empty(l_before) && not_empty(l) &&
         ts_data(tail_of(l_before))->task_id == ts_data(head_of(l))->task_id) {
         ts_data(head_of(l))->start = ts_data(tail_of(l_before))->start;
+        if (ts_data(tail_of(l_before))->statue & PTBA_ALTERNATE_START) {
+            ts_data(head_of(l))->statue &= ~PTBA_ALTERNATE_RESUME;
+            ts_data(head_of(l))->statue |= PTBA_ALTERNATE_START;
+        }
         delete_node(l_before, tail_of(l_before));
     }
     concat_before(l, l_before);
@@ -303,7 +307,7 @@ bool availability_for_primary(statue_ptba *s, time_slice_list tsl, task_hrts tid
                 t->end = ts_data(tmp)->end;
                 t->start = t->end + needed_time;
                 t->statue = PTBA_FREE;
-                t->task_id = 0;
+                t->task_id = -1;
                 ts_data(tmp)->end = t->start;
                 insert_after(tsl, tmp, t);
                 needed_time = 0;
