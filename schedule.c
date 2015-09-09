@@ -43,16 +43,6 @@ void start_scheduling(task_info *tis, task_hrts n) {
     pause();
 }
 
-int wait_for_exit(task_hrts tid) {
-    int statue;
-    do {
-        waitpid(TR->pids[tid], &statue, 0);
-    } while (!WIFEXITED(statue));
-    TR->pids[tid] = 0;
-    TR->running = -1;
-    return WEXITSTATUS(statue);
-}
-
 void start_primary(task_hrts tid) {
     pid_t pid;
     if ((pid = fork())) {

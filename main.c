@@ -58,5 +58,7 @@ int main(int argc, char **argv) {
 
     task_hrts num;
     task_info *tis = parse_config(argv[1], &num);
-    start_scheduling(tis, num);
+
+    while (1)
+        start_scheduling(tis, num);
 }
