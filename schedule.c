@@ -63,6 +63,15 @@ void start_alternate(task_hrts tid) {
     }
 }
 
+void resume_task(action_type *act) {
+    if (TR->pids[act->task_no] != 0) {
+        task_action(act->task_no, SIGCONT);
+        TR->running = act->task_no;
+    } else {
+        act->action = ACTION_NOTHING;
+    }
+}
+
 int task_action(task_hrts tid, int sig) {
     return kill(TR->pids[tid], sig);
 }
@@ -75,7 +84,7 @@ void print_info(time_hrts ct, action_type *a, task_hrts paused) {
         if (paused == a->task_no)
             printf("Continue current task.\n");
         else
-            printf("Pause Task %ld Job %ld & ", paused, TR->job_count[paused]);
+            printf("Pause Task %ld Job %ld & ", (long) paused, (long) TR->job_count[paused]);
     }
 
     if (a->action == ACTION_FINISH) {
@@ -84,13 +93,13 @@ void print_info(time_hrts ct, action_type *a, task_hrts paused) {
         printf("Idle.\n");
     } else if (paused != a->task_no) {
         if (a->action & ACTION_START_PRIMARY) {
-            printf("Start Task %ld Job %ld (primary).\n", a->task_no, TR->job_count[a->task_no]);
+            printf("Start Task %ld Job %ld (primary).\n", (long) a->task_no, (long) TR->job_count[a->task_no]);
         } else if (a->action & ACTION_RESUME_PRIMARY) {
-            printf("Resume Task %ld Job %ld (primary).\n", a->task_no, TR->job_count[a->task_no]);
+            printf("Resume Task %ld Job %ld (primary).\n", (long) a->task_no, (long) TR->job_count[a->task_no]);
         } else if (a->action & ACTION_START_ALTERNATE) {
-            printf("Start Task %ld Job %ld (alternate).\n", a->task_no, TR->job_count[a->task_no]);
+            printf("Start Task %ld Job %ld (alternate).\n", (long) a->task_no, (long) TR->job_count[a->task_no]);
         } else if (a->action & ACTION_RESUME_ALTERNATE) {
-            printf("Resume Task %ld Job %ld (alternate).\n", a->task_no, TR->job_count[a->task_no]);
+            printf("Resume Task %ld Job %ld (alternate).\n", (long) a->task_no, (long) TR->job_count[a->task_no]);
         }
     }
 }
@@ -123,13 +132,11 @@ bool schedule(schedule_reason reason) {
     if (act->action & ACTION_START_PRIMARY) {
         start_primary(act->task_no);
     } else if (act->action & ACTION_RESUME_PRIMARY) {
-        task_action(act->task_no, SIGCONT);
-        TR->running = act->task_no;
+        resume_task(act);
     } else if (act->action & ACTION_START_ALTERNATE) {
         start_alternate(act->task_no);
     } else if (act->action & ACTION_RESUME_ALTERNATE) {
-        task_action(act->task_no, SIGCONT);
-        TR->running = act->task_no;
+        resume_task(act);
     }
 
     print_info(current_time, act, paused_task);

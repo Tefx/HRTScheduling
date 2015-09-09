@@ -67,7 +67,7 @@ typedef struct {
     task_hrts current_running;
 
     time_slice_list predict_table;
-    time_hrts pt_task;
+    task_hrts pt_task;
 
     list_node *alter_orig;
 

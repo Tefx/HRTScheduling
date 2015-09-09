@@ -111,17 +111,17 @@ time_hrts schedule_rm(schedule_status_rm *ss, list *es, time_hrts ct) {
 void print_ev(void *ep) {
     event_rm *ev = (event_rm *) ep;
     if (ev->event == RM_EVENT_STARTED)
-        printf("[%ld][S %ld-%ld]", ev->time, task_no(ev->task), job_no(ev->task));
+        printf("[%ld][S %ld-%ld]", ev->time, (long) task_no(ev->task), (long) job_no(ev->task));
     else if (ev->event == RM_EVENT_RESUMED)
-        printf("[%ld][R %ld-%ld]", ev->time, task_no(ev->task), job_no(ev->task));
+        printf("[%ld][R %ld-%ld]", ev->time, (long) task_no(ev->task), (long) job_no(ev->task));
     else if (ev->event == RM_EVENT_RESUMED)
-        printf("[%ld][P %ld-%ld]", ev->time, task_no(ev->task), job_no(ev->task));
+        printf("[%ld][P %ld-%ld]", ev->time, (long) task_no(ev->task), (long) job_no(ev->task));
     else
-        printf("[%ld][F %ld-%ld]", ev->time, task_no(ev->task), job_no(ev->task));
+        printf("[%ld][F %ld-%ld]", ev->time, (long) task_no(ev->task), (long) job_no(ev->task));
 }
 
 void print_rt(void *tp) {
     task_rm *t = tp;
-    printf("%ld-%ld:%ld/%ld/%ld/%s", task_no(t->tid), job_no(t->tid), t->period, t->st, t->rt,
+    printf("%ld-%ld:%ld/%ld/%ld/%s", (long) task_no(t->tid), (long) job_no(t->tid), t->period, t->st, t->rt,
            t->paused ? "TRUE" : "FALSE");
 }

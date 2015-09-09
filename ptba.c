@@ -390,8 +390,6 @@ task_hrts find_task_with_earliest_notice_time(statue_ptba *statue) {
 time_hrts schedule_ptba(statue_ptba *statue, time_hrts current_time, schedule_reason reason,
                         action_type *action) {
 
-    GC_gcollect();
-
     action->action = ACTION_FINISH;
     action->task_no = -1;
 
@@ -638,7 +636,8 @@ void clean_EIT(statue_ptba *statue, time_hrts current_time) {
 
 void print_ts(void *tp) {
     time_slice *ts = tp;
-    printf("[%ld-%ld][%ld-%ld/%d]", ts->start, ts->end, task_no(ts->task_id), job_no(ts->task_id), ts->statue);
+    printf("[%ld-%ld][%ld-%ld/%d]", ts->start, ts->end, (long) task_no(ts->task_id), (long) job_no(ts->task_id),
+           ts->statue);
 }
 
 void print_statue(statue_ptba *statue, size_t count) {
@@ -653,7 +652,7 @@ void print_statue(statue_ptba *statue, size_t count) {
     printf("TS: ");
 
     for (task_hrts i = 0; i < statue->num_task; i++) {
-        printf("<[%ld]%ld/%ld/%u>", i, statue->task_statue[i].job, statue->task_statue[i].remaining_time,
+        printf("<[%ld]%ld/%ld/%u>", (long) i, (long) statue->task_statue[i].job, statue->task_statue[i].remaining_time,
                statue->task_statue[i].statue);
     }
     printf("\n");

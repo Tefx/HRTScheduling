@@ -30,12 +30,13 @@ void test_alg(task_info *tis, task_hrts n) {
     do {
         current_time = next_time;
         next_time = schedule_ptba(s, current_time, REASON_SCHEDULE_POINT, action);
-        printf(">>>> ct:%ld, action:[%ld->%u]\n", current_time, action->task_no, action->action);
+        printf(">>>> ct:%ld, action:[%ld->%u]\n", current_time, (long) action->task_no, action->action);
     } while (action->action != ACTION_FINISH);
 }
 
 int main(int argc, char **argv) {
     GC_INIT();
+    GC_enable_incremental();
 
 //    char pproc_path[] = "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc";
 //

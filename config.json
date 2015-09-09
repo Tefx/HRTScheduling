@@ -1,7 +1,7 @@
 [
   {
-    "primary_path": "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc",
-    "alternate_path": "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc",
+    "primary_path": "PProc",
+    "alternate_path": "PProc",
     "primary_argv": [
       "0-P",
       "20",
@@ -17,12 +17,12 @@
     "alternate_time": 15
   },
   {
-    "primary_path": "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc",
-    "alternate_path": "/home/tefx/.clion11/system/cmake/generated/e9341000/e9341000/Debug/PProc",
+    "primary_path": "PProc",
+    "alternate_path": "PProc",
     "primary_argv": [
       "1-P",
       "15",
-      "0.4"
+      "0.7"
     ],
     "alternate_argv": [
       "1-A",

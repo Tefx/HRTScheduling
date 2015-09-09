@@ -15,37 +15,37 @@ void busy_sleep(char *s, long ns) {
     while (1) {
         req.tv_sec = 0;
 
-        if (i > ns) {
-            req.tv_nsec = ns - i + 5e8L;
-        } else
+        if (i + 50 > ns) {
+            req.tv_nsec = (ns - i) * 100 + 50;
+            i = ns;
+        } else {
             req.tv_nsec = 5e8L;
+            i += 50;
+        }
         while (nanosleep(&req, &req) == -1);
-        //printf("\t[%s] %.2f second passed.\n", s, ((double)i/1e9));
+        //printf("\t[%s] %.2f seconds passed. (%.2fs total)\n", s, (double)i/100, (double)ns/100);
 
-        if (i > ns)
-            break;
-        else
-            i += 5e8;
+        if (i == ns) break;
     }
 
 
 }
 
 int main(int argc, char *argv[]) {
-    long runtime = (long) (atof(argv[1]) * 1e9L);
+    long runtime = (long) (atof(argv[1]) * 100);
     double fail_prob = atof(argv[2]);
 
-    if (runtime >= 3e9L)
-        runtime -= 1.5e9L;
+    if (runtime >= 300)
+        runtime -= 150;
     else
-        runtime -= 1e9L;
+        runtime -= 100;
 
     srand((unsigned int) time(NULL));
     printf("\t[%s] started.\n", argv[0]);
     if (rand() % 100 <= fail_prob * 100) {
-        runtime = rand() % (runtime / (long) 1e6) * 1e6;
+        runtime = rand() % runtime;
         busy_sleep(argv[0], runtime);
-        printf("\t[%s] failed (after %.2fs).\n", argv[0], runtime / 1e9);
+        printf("\t[%s] failed (after %.2fs).\n", argv[0], (double) runtime / 100);
         exit(EXIT_FAILURE);
     } else {
         busy_sleep(argv[0], runtime);
