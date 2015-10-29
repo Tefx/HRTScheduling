@@ -76,8 +76,9 @@ int task_action(task_hrts tid, int sig) {
     return kill(TR->pids[tid], sig);
 }
 
-void print_info(time_hrts ct, action_type *a, task_hrts paused) {
+void print_info(time_hrts ct, action_type *a, task_hrts paused, clock_t duration) {
 
+    printf("Scheduling... (using %ldμs)\n", (long)(duration/(CLOCKS_PER_SEC/1.0e6)));
     printf("[+%lds]>>> ", ct);
 
     if (paused >= 0) {
@@ -105,8 +106,8 @@ void print_info(time_hrts ct, action_type *a, task_hrts paused) {
 }
 
 bool schedule(schedule_reason reason) {
-
-    //print_statue(TR->schedule_statue, 10);
+    clock_t clock_begin, clock_end;
+    clock_begin = clock();
 
     time_t new_time = time(NULL);
     time_hrts current_time = TR->last_point + new_time - timer;
@@ -139,7 +140,8 @@ bool schedule(schedule_reason reason) {
         resume_task(act);
     }
 
-    print_info(current_time, act, paused_task);
+    clock_end = clock();
+    print_info(current_time, act, paused_task, clock_end-clock_begin);
 
     if (act->action == ACTION_FINISH) {
         return false;
